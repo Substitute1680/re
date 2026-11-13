@@ -1,0 +1,30 @@
+HANDOFF — SARE-NF (Ghidra pipeline บน GitHub Actions) สำหรับโปรเจกต์ NF (nfsu2-substitute)
+อัปเดต: 2026-11-13 | เกม: Need for Speed Underground 2 Android port (pcrecomp lift ของ SPEED2.EXE)
+
+== เป้าหมาย ==
+หาว่าฟังก์ชันเกม sub_005D2850 (ใน libnfsu2_android.so, offset 0x2e318b0, ขนาด 0x5794 ไบต์) ทำอะไรข้างใน
+ฟังก์ชันนี้คือจุดที่ guest thread 1 ของ NF ค้างถือ machine lock นานที่สุด (21-25 ms/frame ที่กราฟิกสูงสุด)
+จาก diagnostics log หลายรอบ — เป็นคอขวด FPS หลักที่เหลืออยู่ของโปรเจกต์ NF (repo แยก: tanakorn1680/NF)
+
+repo นี้แยกจาก tanakorn1680/SARE (ตัวนั้นใช้กับ ProMenu/libGTASA เท่านั้น) ห้ามปนกัน
+
+== ต้องมีอะไรก่อนรัน ==
+1. อัปโหลด libnfsu2_android.so (arm64, มาจาก build เดียวกับ log ที่วิเคราะห์) เป็น Release asset ของ repo นี้
+   (ไฟล์เกิน 100MB ใส่ใน repo ปกติไม่ได้ ต้องผ่าน Release ซึ่งรองรับถึง 2GB)
+2. keywords.txt ตั้งไว้แล้วสำหรับ sub_005D2850 ตัวเดียว ไม่ต้องแก้ก่อนรันรอบแรก
+
+== วิธีรัน ==
+Actions > "Ghidra analyze" > Run workflow
+  release_tag = tag ของ release ที่แนบ .so ไว้
+  asset_name = ชื่อไฟล์ asset (ค่าเริ่มต้น libnfsu2_android.so)
+  reanalyze = false (ใช้ cache ถ้ามี)
+เสร็จแล้วโหลด artifact "ghidra-out" ส่งกลับมาให้ AI ที่ทำ NF
+
+== ผลลัพธ์ (out/libnfsu2_android/) ==
+- decompiled.c : โค้ดที่ Ghidra ถอดได้ของ sub_005D2850 — อ่านไฟล์นี้เป็นหลัก
+- summary.txt, functions.tsv, symbols.tsv
+
+== หมายเหตุ ==
+โค้ดที่ lift มาไม่มีชื่อ struct/ตัวแปรที่มีความหมาย (สัญลักษณ์เดิมของเกมหายไปหมดตั้งแต่ pcrecomp lift)
+การอ่าน decompiled.c จะเห็นแค่ FUN_/DAT_/ตัวแปรดิบ ต้องตีความเอาจากโครงสร้าง loop/การเรียกฟังก์ชันภายใน
+ถ้าต้องการเทียบกับ x86 ต้นฉบับ ให้ดู input/X.EXE ใน repo NF ที่ VA 0x005D2850 (ใช้ disassembler แยก ไม่ใช่งานของ repo นี้)

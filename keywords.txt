@@ -1,0 +1,11 @@
+# keywords.txt  (รูปแบบเต็มดูหัวไฟล์ scripts/ExportInfo.java)
+#  @lib <ชื่อ>      บรรทัดต่อจากนี้ใช้เฉพาะไลบรารีที่ชื่อมีคำนี้ ; @lib * = ทุกไลบรารี
+#  @0xOFFSET        ถอดฟังก์ชันเดียวที่ offset นี้
+#  offset = address - imageBase ; สำหรับ pcrecomp lift สัญลักษณ์เป็น sub_<VA เดิมของเกม>
+
+# เป้าหมาย: หาว่าทำไม guest thread 1 ของ NF (nfsu2-substitute) ถือ machine lock นาน
+# (21-25 ms/frame ที่กราฟิกสูงสุด) ฟังก์ชันนี้คือจุดที่ thread 1 ค้างอยู่ทุกครั้งที่ hold สูงสุดใน log
+
+@lib libnfsu2_android
+@nocallers
+@0x2e318b0   # sub_005D2850 — guest thread 1 ค้างอยู่ตรงนี้ (0x5794 ไบต์); VA เดิมของเกมคือ 0x005D2850

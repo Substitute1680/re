@@ -1,0 +1,87 @@
+name: Ghidra analyze
+
+on:
+  workflow_dispatch:
+    inputs:
+      reanalyze:
+        description: "วิเคราะห์ใหม่ทั้งหมด (ไม่ใช้ cache)"
+        type: boolean
+        default: false
+      release_tag:
+        description: "Release tag ของ repo นี้ที่แนบ libnfsu2_android.so ไว้เป็น asset"
+        type: string
+        required: true
+      asset_name:
+        description: "ชื่อไฟล์ asset ใน release นั้น"
+        type: string
+        default: "libnfsu2_android.so"
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Download the .so from this repo's Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p work/arm64-v8a
+          gh release download "${{ inputs.release_tag }}" \
+            --repo "${{ github.repository }}" \
+            --pattern "${{ inputs.asset_name }}" \
+            --dir work/arm64-v8a
+          ls -la work/arm64-v8a
+
+      - name: Download Ghidra (latest release)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/g
+          gh release download --repo NationalSecurityAgency/ghidra --pattern 'ghidra_*_PUBLIC_*.zip' --dir /tmp/g
+          unzip -q /tmp/g/*.zip -d /opt
+          echo "GHIDRA=$(ls -d /opt/ghidra_*_PUBLIC)" >> "$GITHUB_ENV"
+
+      - name: Restore Ghidra project cache
+        id: cache
+        if: ${{ !inputs.reanalyze }}
+        uses: actions/cache@v4
+        with:
+          path: gproj
+          key: gproj-${{ inputs.release_tag }}-${{ inputs.asset_name }}
+
+      - name: Run Ghidra headless
+        env:
+          MAXMEM: 5G
+          KEYWORDS_FILE: ${{ github.workspace }}/keywords.txt
+          MAX_DECOMP: "100"
+          MAX_CALLERS: "40"
+        run: |
+          mkdir -p out gproj
+          SO="work/arm64-v8a/${{ inputs.asset_name }}"
+          NAME=$(basename "$SO")
+          OUT="$PWD/out/${NAME%.so}"
+          if [ "${{ steps.cache.outputs.cache-hit }}" = "true" ]; then
+            echo ">> ใช้ project จาก cache (ข้ามการวิเคราะห์)"
+            OUT_DIR="$OUT" "$GHIDRA/support/analyzeHeadless" gproj p -process "$NAME" -noanalysis \
+              -scriptPath "$PWD/scripts" -postScript DefineCode.java -postScript ExportInfo.java < /dev/null
+          else
+            echo ">> import + วิเคราะห์ใหม่ (ช้า)"
+            OUT_DIR="$OUT" "$GHIDRA/support/analyzeHeadless" gproj p -import "$SO" -overwrite \
+              -analysisTimeoutPerFile 6000 \
+              -scriptPath "$PWD/scripts" -postScript DefineCode.java -postScript ExportInfo.java < /dev/null
+          fi
+          cat "$OUT/summary.txt" 2>/dev/null || echo "(ไม่มี summary)"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ghidra-out
+          path: out/
