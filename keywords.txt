@@ -1,15 +1,21 @@
-# keywords.txt  (รูปแบบเต็มดูหัวไฟล์ scripts/ExportInfo.java)
-#  @lib <ชื่อ>      บรรทัดต่อจากนี้ใช้เฉพาะไลบรารีที่ชื่อมีคำนี้ ; @lib * = ทุกไลบรารี
-#  @0xOFFSET        ถอดฟังก์ชันเดียวที่ offset นี้ (ห้ามมีคอมเมนต์ต่อท้ายบรรทัดเดียวกัน — ตัว parser อ่านทั้งบรรทัดเป็นตัวเลข)
+# keywords.txt  (รูปแบบเต็มดูหัวไฟล์ scripts/ExportInfo.java และ scripts/DefineCode.java)
+#  @lib <ชื่อ>       บรรทัดต่อจากนี้ใช้เฉพาะไลบรารีที่ชื่อมีคำนี้ ; @lib * = ทุกไลบรารี
+#  @define 0xA-0xB   (DefineCode.java) สร้างฟังก์ชันในช่วงนี้ก่อน ถ้ายังไม่มี — รองรับ # คอมเมนต์ต่อท้ายบรรทัดได้
+#  @0xOFFSET         (ExportInfo.java) ถอดโค้ดฟังก์ชันที่ offset นี้ — ห้ามมีคอมเมนต์ต่อท้ายบรรทัดเดียวกัน (parser อ่านทั้งบรรทัดเป็นเลข)
 #  offset = address - imageBase
 
 # เป้าหมาย: หาว่าทำไม guest thread 1 ของ NF (nfsu2-substitute) ถือ machine lock นาน
 # (21-25 ms/frame ที่กราฟิกสูงสุด) ฟังก์ชันนี้คือจุดที่ thread 1 ค้างอยู่ทุกครั้งที่ hold สูงสุดใน log
 #
-# sub_005D2850 (VA เดิมของเกม 0x005D2850) — address ใน .so = 0x2e318b0 (จาก .nm.gz)
-# imageBase ของ .so นี้ = 0x100000 (ยืนยันจาก summary.txt รอบก่อน)
-# offset ที่ต้องใช้ = address - imageBase = 0x2e318b0 - 0x100000 = 0x2d318b0
+# sub_005D2850 (VA เดิมของเกม 0x005D2850) จาก .nm.gz: address=0x2e318b0 size=0x5794
+# imageBase ของ .so นี้ = 0x100000 (ยืนยันจาก summary.txt)
+# offset เริ่ม = 0x2e318b0 - 0x100000 = 0x2d318b0
+# offset จบ   = 0x2d318b0 + 0x5794   = 0x2d37044
+#
+# รอบก่อนหน้า @0x2d318b0 แต่ไม่มี @define เลย — Ghidra เอง "ไม่เคยสร้างฟังก์ชัน" ที่ offset นี้
+# (ไม่อยู่ใน functions.tsv) ExportInfo เลยถอดฟังก์ชันผิดตัว (ใกล้เคียงกันแต่คนละที่) ต้องสร้างฟังก์ชันก่อนด้วย @define
 
 @lib libnfsu2_android
+@define 0x2d318b0-0x2d37044   # sub_005D2850 — บังคับให้ Ghidra สร้างฟังก์ชันในช่วงนี้ก่อนถอดโค้ด
 @nocallers
 @0x2d318b0
